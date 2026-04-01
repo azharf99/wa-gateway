@@ -1,0 +1,33 @@
+# Binaries (File hasil compile)
+/main
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+bin/
+
+# Environment Variables (SANGAT PENTING: Jangan sampai token/password bocor!)
+.env
+.env.development
+.env.staging
+.env.production
+
+# IDE / Editor Files (Konfigurasi VSCode, GoLand, dsb)
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS specific files
+.DS_Store
+Thumbs.db
+
+# Docker volumes (Jika kamu map data postgres ke folder lokal)
+pgdata/
+*.db
+*.db-shm
+*.db-wal
+
+# Go workspace
+go.work

@@ -1,0 +1,16 @@
+services:
+  wa-gateway:
+    build: .
+    container_name: wa-gateway-service
+    restart: unless-stopped
+    ports:
+      # Format: "Port_VPS : Port_Internal_Container"
+      - "8003:8080"
+    volumes:
+      # Mapping folder wa-data di VPS ke folder /app/data di dalam container
+      # Ini menjaga sessions.db aman meskipun container dihapus/diupdate
+      - ./wa-data:/app/data
+    environment:
+      - TZ=Asia/Jakarta
+      # Bapak bisa menambahkan environment variable lain di sini nanti
+      # - JWT_SECRET=super-rahasia
