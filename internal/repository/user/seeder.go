@@ -28,8 +28,6 @@ func SeedAdminUser(repo domain.UserRepository) {
 			fmt.Println("Gagal seeding user admin:", err)
 		} else {
 			fmt.Println("✅ Berhasil membuat user admin default!")
-			fmt.Println("   Username: admin")
-			fmt.Println("   Password: AdminSekolah123")
 		}
 	}
 }

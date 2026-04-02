@@ -12,6 +12,8 @@ services:
       - ./wa-data:/app/data
     environment:
       - TZ=Asia/Jakarta
-      # Bapak bisa menambahkan environment variable lain di sini nanti
-      - JWT_SECRET=${JWT_SECRET}
-      - GIN_MODE=${GIN_MODE}
+      - JWT_SECRET=${JWT_SECRET:-ketikan_disini_secret_anda}
+      - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ketikan_disini_secret_anda}
+      - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-AdminSekolah123}
+      - GIN_MODE=release

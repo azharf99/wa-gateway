@@ -80,7 +80,7 @@ func main() {
 	schedulerUC.Start()
 	// Pastikan scheduler dihentikan saat aplikasi mati
 	defer schedulerUC.Stop()
-	
+
 	// 4. PENTING: Load kembali reminder dari DB saat startup
 	remUC.Start()
 
@@ -123,8 +123,8 @@ func main() {
 	}
 
 	// Jalankan Server
-	fmt.Println("Server berjalan di port 8003...")
-	if err := r.Run(":8003"); err != nil {
+	fmt.Println("Server berjalan di port 8080...")
+	if err := r.Run(":8080"); err != nil {
 		panic(err)
 	}
 }
