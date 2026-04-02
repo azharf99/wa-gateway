@@ -8,7 +8,7 @@ WORKDIR /app
 
 # Install tzdata (SANGAT PENTING untuk Gocron agar zona waktu akurat)
 RUN apk add --no-cache tzdata
-RUN apk add --no-cache sqlite3
+RUN apk add --no-cache sqlite
 
 # Copy file dependency
 COPY go.mod go.sum ./
