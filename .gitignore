@@ -28,6 +28,7 @@ pgdata/
 *.db
 *.db-shm
 *.db-wal
+wa-data/
 
 # Go workspace
 go.work

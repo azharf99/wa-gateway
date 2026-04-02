@@ -41,7 +41,7 @@ func (h *AuthHandler) Login(c *gin.Context) {
 
 	// Catatan: Jika testing di localhost HTTP, Secure bisa diset false sementara.
 	// Jika VPS sudah pakai HTTPS/SSL, wajib true.
-	isSecure := false
+	isSecure := true
 
 	c.SetCookie("refresh_token", refreshToken, maxAge, "/", "", isSecure, true)
 
