@@ -7,7 +7,8 @@ FROM golang:1.26-alpine AS builder
 WORKDIR /app
 
 # Install tzdata (SANGAT PENTING untuk Gocron agar zona waktu akurat)
-RUN apk add --no-cache tzdata sqlite3
+RUN apk add --no-cache tzdata
+RUN apk add --no-cache sqlite3
 
 # Copy file dependency
 COPY go.mod go.sum ./
