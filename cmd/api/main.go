@@ -14,12 +14,14 @@ import (
 
 	"github.com/azharf99/wa-gateway/internal/delivery/http/handler"
 	"github.com/azharf99/wa-gateway/internal/delivery/http/middleware"
+	"github.com/azharf99/wa-gateway/internal/repository/contact"
 	"github.com/azharf99/wa-gateway/internal/repository/whatsapp"
 
 	userRepo "github.com/azharf99/wa-gateway/internal/repository/user"
 	authUC "github.com/azharf99/wa-gateway/internal/usecase/auth"
 	schedUsecase "github.com/azharf99/wa-gateway/internal/usecase/scheduler"
 	waUsecase "github.com/azharf99/wa-gateway/internal/usecase/whatsapp"
+	contactUsecase "github.com/azharf99/wa-gateway/internal/usecase/contact"
 )
 
 func main() {
@@ -50,6 +52,7 @@ func main() {
 
 	// 2. Setup Repository & Seeder
 	uRepo := userRepo.NewSqliteUserRepository(db)
+	contactRepo := contact.NewSqliteContactRepository(db)
 	userRepo.SeedAdminUser(uRepo) // Jalankan seeder
 
 	// 1. Setup Repository
@@ -62,8 +65,9 @@ func main() {
 
 	// 2. Setup Usecases
 	aUC := authUC.NewAuthUsecase(uRepo)
-	waUC := waUsecase.NewWhatsAppUsecase(waRepo)
+	waUC := waUsecase.NewWhatsAppUsecase(waRepo, contactRepo)
 	schedulerUC := schedUsecase.NewSchedulerUsecase(waUC)
+	contactUC := contactUsecase.NewContactUsecase(contactRepo)
 	// Mulai jalankan engine gocron
 	schedulerUC.Start()
 	// Pastikan scheduler dihentikan saat aplikasi mati
@@ -103,6 +107,7 @@ func main() {
 		// Oper route group yang sudah dilindungi ke handler
 		handler.NewWhatsAppHandler(protected, waUC)
 		handler.NewSchedulerHandler(protected, schedulerUC)
+		handler.NewContactHandler(protected, contactUC)
 	}
 
 	// Jalankan Server

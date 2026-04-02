@@ -6,6 +6,7 @@ import "context"
 type SendMessageReq struct {
 	To      string `json:"to" binding:"required"`
 	Message string `json:"message" binding:"required"`
+	IsGroup bool   `json:"is_group" default:"false"`
 }
 
 // Response standar
@@ -38,6 +39,7 @@ type WhatsAppUsecase interface {
 	Logout() error
 	SendMessage(ctx context.Context, req SendMessageReq) (string, error)
 	BroadcastMessages(req BroadcastReq)
+	SendBroadcast(req BroadcastReq) error
 	SendMedia(ctx context.Context, req SendMediaReq) (string, error)
 	GetJoinedGroups(ctx context.Context) ([]GroupInfo, error)
 }
@@ -50,7 +52,9 @@ type BroadcastRecipient struct {
 
 // Struct untuk payload utama
 type BroadcastReq struct {
-	Recipients []BroadcastRecipient `json:"recipients" binding:"required"`
+	Recipients      []BroadcastRecipient `json:"recipients" binding:"required"`
+	MessageTemplate string               `json:"message_template"` // Opsional, bisa digunakan untuk template pesan
+	FileBytes       []byte               // File CSV
 }
 
 type SendMediaReq struct {

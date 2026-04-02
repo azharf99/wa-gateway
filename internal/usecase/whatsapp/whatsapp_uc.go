@@ -1,7 +1,9 @@
 package whatsapp
 
 import (
+	"bytes"
 	"context"
+	"encoding/csv"
 	"errors"
 	"fmt"
 	"math/rand"
@@ -12,13 +14,15 @@ import (
 )
 
 type waUsecase struct {
-	repo domain.WhatsAppRepository
+	repo        domain.WhatsAppRepository
+	contactRepo domain.ContactRepository
 }
 
 // Constructor Usecase meng-inject Repository
-func NewWhatsAppUsecase(repo domain.WhatsAppRepository) domain.WhatsAppUsecase {
+func NewWhatsAppUsecase(repo domain.WhatsAppRepository, contactRepo domain.ContactRepository) domain.WhatsAppUsecase {
 	return &waUsecase{
-		repo: repo,
+		repo:        repo,
+		contactRepo: contactRepo, // Inject Contact Repository untuk akses data kontak
 	}
 }
 
@@ -45,7 +49,24 @@ func (uc *waUsecase) SendMessage(ctx context.Context, req domain.SendMessageReq)
 	// Logic format nomor: pastikan menggunakan @s.whatsapp.net jika belum ada
 	jid := req.To
 	if !strings.Contains(jid, "@") {
-		jid = jid + "@s.whatsapp.net"
+		if req.IsGroup {
+			jid = jid + "@g.us"
+		} else {
+			jid = jid + "@s.whatsapp.net"
+		}
+	}
+
+	if strings.Contains(req.Message, "{{nama}}") {
+		// Cari kontak berdasarkan nomor HP (bersihkan format JID jika perlu)
+		cleanPhone := strings.Split(req.To, "@")[0]
+		contact, err := uc.contactRepo.GetByPhone(ctx, cleanPhone)
+
+		if err == nil && contact != nil {
+			req.Message = strings.ReplaceAll(req.Message, "{{nama}}", contact.Name)
+		} else {
+			// Jika tidak ditemukan, ganti dengan sapaan umum atau hapus placeholder
+			req.Message = strings.ReplaceAll(req.Message, "{{nama}}", "Bapak/Ibu")
+		}
 	}
 
 	return uc.repo.SendTextMessage(ctx, jid, req.Message)
@@ -110,4 +131,81 @@ func (uc *waUsecase) SendMedia(ctx context.Context, req domain.SendMediaReq) (st
 
 func (uc *waUsecase) GetJoinedGroups(ctx context.Context) ([]domain.GroupInfo, error) {
 	return uc.repo.GetJoinedGroups(ctx)
+}
+
+func (uc *waUsecase) SendBroadcast(req domain.BroadcastReq) error {
+	// 1. Baca isi file CSV
+	reader := csv.NewReader(bytes.NewReader(req.FileBytes))
+	records, err := reader.ReadAll()
+	if err != nil {
+		return fmt.Errorf("gagal membaca file CSV: %v", err)
+	}
+
+	if len(records) < 2 {
+		return fmt.Errorf("file CSV kosong atau tidak memiliki baris data")
+	}
+
+	// 2. Ekstrak Header untuk dynamic variable mapping
+	headers := records[0]
+
+	// 3. Jalankan proses Broadcast di Background (Goroutine)
+	// Agar request HTTP langsung selesai dan tidak Timeout di frontend
+	go func() {
+		fmt.Printf("Memulai proses broadcast ke %d kontak...\n", len(records)-1)
+		sukses := 0
+		gagal := 0
+
+		// Mulai dari index 1 (melewati header)
+		for i := 1; i < len(records); i++ {
+			row := records[i]
+
+			// Jika baris kosong, lewati
+			if len(row) == 0 || row[0] == "" {
+				continue
+			}
+
+			// Ambil nomor tujuan (Asumsi kolom pertama selalu nomor telepon)
+			target := row[0]
+
+			// Rakit pesan dari template
+			pesanPersonal := req.MessageTemplate
+			for j, headerName := range headers {
+				if j < len(row) {
+					// Ganti {{nama_header}} dengan isi baris
+					placeholder := fmt.Sprintf("{{%s}}", headerName)
+					pesanPersonal = strings.ReplaceAll(pesanPersonal, placeholder, row[j])
+				}
+			}
+
+			// Buat request pengiriman teks biasa
+			sendReq := domain.SendMessageReq{
+				To:      target,
+				Message: pesanPersonal,
+				IsGroup: false,
+			}
+
+			// Kirim pesan
+			_, err := uc.SendMessage(context.Background(), sendReq)
+
+			if err != nil {
+				fmt.Printf("[Broadcast Error] Gagal mengirim ke %s: %v\n", target, err)
+				gagal++
+			} else {
+				fmt.Printf("[Broadcast Sukses] Pesan terkirim ke %s\n", target)
+				sukses++
+			}
+
+			// ========================================================
+			// LAYER ANTI-BANNED (WAJIB ADA)
+			// Jeda acak / tetap antar pesan agar tidak terdeteksi bot spam
+			// ========================================================
+			time.Sleep(3 * time.Second)
+		}
+
+		fmt.Println("========================================")
+		fmt.Printf("Broadcast Selesai! Sukses: %d, Gagal: %d\n", sukses, gagal)
+		fmt.Println("========================================")
+	}()
+
+	return nil
 }
