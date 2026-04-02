@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 
 	"github.com/azharf99/wa-gateway/internal/delivery/http/handler"
@@ -17,11 +18,13 @@ import (
 	"github.com/azharf99/wa-gateway/internal/repository/contact"
 	"github.com/azharf99/wa-gateway/internal/repository/whatsapp"
 
+	reminderRepo "github.com/azharf99/wa-gateway/internal/repository/reminder"
 	userRepo "github.com/azharf99/wa-gateway/internal/repository/user"
 	authUC "github.com/azharf99/wa-gateway/internal/usecase/auth"
+	contactUsecase "github.com/azharf99/wa-gateway/internal/usecase/contact"
+	reminderUC "github.com/azharf99/wa-gateway/internal/usecase/reminder"
 	schedUsecase "github.com/azharf99/wa-gateway/internal/usecase/scheduler"
 	waUsecase "github.com/azharf99/wa-gateway/internal/usecase/whatsapp"
-	contactUsecase "github.com/azharf99/wa-gateway/internal/usecase/contact"
 )
 
 func main() {
@@ -50,9 +53,13 @@ func main() {
 		}
 	}
 
+	scheduler := gocron.NewScheduler(time.Local)
+	scheduler.StartAsync() // Jalankan mesin scheduler
+
 	// 2. Setup Repository & Seeder
 	uRepo := userRepo.NewSqliteUserRepository(db)
 	contactRepo := contact.NewSqliteContactRepository(db)
+	remRepo := reminderRepo.NewSqliteReminderRepository(db)
 	userRepo.SeedAdminUser(uRepo) // Jalankan seeder
 
 	// 1. Setup Repository
@@ -68,10 +75,14 @@ func main() {
 	waUC := waUsecase.NewWhatsAppUsecase(waRepo, contactRepo)
 	schedulerUC := schedUsecase.NewSchedulerUsecase(waUC)
 	contactUC := contactUsecase.NewContactUsecase(contactRepo)
+	remUC := reminderUC.NewReminderUsecase(remRepo, waUC, scheduler)
 	// Mulai jalankan engine gocron
 	schedulerUC.Start()
 	// Pastikan scheduler dihentikan saat aplikasi mati
 	defer schedulerUC.Stop()
+	
+	// 4. PENTING: Load kembali reminder dari DB saat startup
+	remUC.Start()
 
 	// 3. Setup Router Gin & Handlers
 	r := gin.Default()
@@ -108,6 +119,7 @@ func main() {
 		handler.NewWhatsAppHandler(protected, waUC)
 		handler.NewSchedulerHandler(protected, schedulerUC)
 		handler.NewContactHandler(protected, contactUC)
+		handler.NewReminderHandler(protected, remUC)
 	}
 
 	// Jalankan Server

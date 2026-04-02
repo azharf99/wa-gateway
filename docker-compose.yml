@@ -1,6 +1,6 @@
 services:
   wa-gateway:
-    image: wa-gateway:latest
+    image: azharfa/wa-gateway:latest
     container_name: wa-gateway-service
     restart: unless-stopped
     ports:

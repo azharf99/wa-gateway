@@ -3,6 +3,7 @@ package domain
 // Format waktu yang diharapkan dari JSON: "2026-04-01 15:30:00"
 type ScheduleReq struct {
 	To      string `json:"to" binding:"required"`
+	IsGroup bool   `json:"is_group" default:"false"`
 	Message string `json:"message" binding:"required"`
 	RunAt   string `json:"run_at" binding:"required"`
 }
