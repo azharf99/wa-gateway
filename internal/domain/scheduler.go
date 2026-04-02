@@ -4,11 +4,23 @@ package domain
 type ScheduleReq struct {
 	To      string `json:"to" binding:"required"`
 	Message string `json:"message" binding:"required"`
-	RunAt   string `json:"run_at" binding:"required"` 
+	RunAt   string `json:"run_at" binding:"required"`
 }
 
 type SchedulerUsecase interface {
 	Start()
 	Stop()
 	ScheduleMessage(req ScheduleReq) error
+	ScheduleMedia(req ScheduleMediaReq) error // Kontrak baru
+}
+
+type ScheduleMediaReq struct {
+	To        string
+	IsGroup   bool
+	FileBytes []byte
+	FileName  string
+	MimeType  string
+	Caption   string
+	MediaType string // "document", "image", "video"
+	RunAt     string // Format: "YYYY-MM-DD HH:MM:SS"
 }

@@ -6,7 +6,6 @@ import (
 	"os"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
-	"github.com/mdp/qrterminal/v3"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
@@ -20,6 +19,7 @@ import (
 
 type whatsmeowRepo struct {
 	client *whatsmeow.Client
+	qrCode string
 }
 
 func NewWhatsmeowRepository() domain.WhatsAppRepository {
@@ -58,13 +58,19 @@ func (r *whatsmeowRepo) Connect() error {
 		if err != nil {
 			return err
 		}
-		for evt := range qrChan {
-			if evt.Event == "code" {
-				qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
-			} else {
-				fmt.Println("Login WhatsApp Sukses!")
+		go func() {
+			for evt := range qrChan {
+				if evt.Event == "code" {
+					// Simpan string QR Code ke memori (diperbarui otomatis setiap ganti QR)
+					r.qrCode = evt.Code
+					// qrterminal.GenerateHalfBlock(evt.Code, qrterminal.L, os.Stdout)
+				} else {
+					// Jika login sukses, kosongkan QR Code
+					r.qrCode = ""
+					fmt.Println("Login WhatsApp Sukses!")
+				}
 			}
-		}
+		}()
 	} else {
 		return r.client.Connect()
 	}
@@ -75,8 +81,40 @@ func (r *whatsmeowRepo) IsConnected() bool {
 	return r.client.IsConnected() && r.client.IsLoggedIn()
 }
 
+func (r *whatsmeowRepo) GetQRCode() string {
+	return r.qrCode
+}
+
+func (r *whatsmeowRepo) Logout() error {
+	if r.client.IsLoggedIn() {
+		err := r.client.Logout(context.Background())
+		if err != nil {
+			return err
+		}
+
+		// Bersihkan QR Code memori (berjaga-jaga)
+		r.qrCode = ""
+
+		// Jalankan ulang Connect() di background agar VPS langsung bersiap
+		// menghasilkan QR Code baru untuk device pengganti Anda.
+		go func() {
+			r.Connect()
+		}()
+	}
+	return nil
+}
+
 func (r *whatsmeowRepo) SendTextMessage(ctx context.Context, jidStr string, text string) (string, error) {
 	jid, _ := types.ParseJID(jidStr)
+
+	res, err := r.client.IsOnWhatsApp(ctx, []string{jid.User})
+	if err != nil {
+		return "", fmt.Errorf("gagal memverifikasi nomor ke server WA: %v", err)
+	}
+
+	if len(res) == 0 || !res[0].IsIn {
+		return "", fmt.Errorf("nomor tujuan tidak terdaftar di WhatsApp")
+	}
 
 	msg := &waE2E.Message{
 		Conversation: proto.String(text),
@@ -122,6 +160,7 @@ func (r *whatsmeowRepo) SendMediaMessage(ctx context.Context, jidStr string, req
 			FileSHA256:    uploaded.FileSHA256,
 			FileLength:    proto.Uint64(uint64(len(req.FileBytes))),
 			Title:         proto.String(req.FileName),
+			FileName:      proto.String(req.FileName), // INI FIELD KRUSIAL YANG DITAMBAHKAN
 			Mimetype:      proto.String(req.MimeType),
 			Caption:       proto.String(req.Caption),
 		}

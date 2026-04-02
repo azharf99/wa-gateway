@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -22,6 +24,8 @@ func NewWhatsAppHandler(r *gin.RouterGroup, uc domain.WhatsAppUsecase) {
 	api := r.Group("/api/v1/whatsapp")
 	{
 		api.GET("/status", handler.Status)
+		api.GET("/qr", handler.GetQRCode)
+		api.POST("/logout", handler.DisconnectDevice)
 		api.POST("/send", handler.SendMessage)
 		api.POST("/broadcast", handler.Broadcast)
 		api.POST("/media", handler.SendMedia)
@@ -35,6 +39,32 @@ func (h *WhatsAppHandler) Status(c *gin.Context) {
 		Status:  "success",
 		Message: "WhatsApp connection status",
 		Data:    map[string]string{"state": status},
+	})
+}
+
+func (h *WhatsAppHandler) GetQRCode(c *gin.Context) {
+	qr := h.uc.GetQRCode()
+	c.JSON(http.StatusOK, domain.Response{
+		Status:  "success",
+		Message: "QR Code didapatkan",
+		Data:    map[string]string{"qr_code": qr},
+	})
+}
+
+func (h *WhatsAppHandler) DisconnectDevice(c *gin.Context) {
+	err := h.uc.Logout()
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.Response{
+			Status:  "error",
+			Message: "Gagal memutuskan koneksi perangkat",
+			Data:    err.Error(),
+		})
+		return
+	}
+
+	c.JSON(http.StatusOK, domain.Response{
+		Status:  "success",
+		Message: "Perangkat berhasil diputuskan",
 	})
 }
 
@@ -104,46 +134,68 @@ func (h *WhatsAppHandler) SendMedia(c *gin.Context) {
 	}
 	defer file.Close()
 
-	// 2. Baca file ke dalam bytes
-	fileBytes, err := io.ReadAll(file)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, domain.Response{
-			Status:  "error",
-			Message: "Gagal membaca file",
-			Data:    err.Error(),
-		})
-		return
-	}
-
-	// 3. Ambil parameter form lainnya
+	// Ambil parameter form
 	to := c.PostForm("to")
 	caption := c.PostForm("caption")
-	mediaType := c.PostForm("media_type") // "document", "image", "video"
+	mediaType := c.PostForm("media_type")
 	isGroupStr := c.PostForm("is_group")
-
 	isGroup, _ := strconv.ParseBool(isGroupStr)
 
 	if mediaType == "" {
 		mediaType = "document" // Default
 	}
 
-	// 4. Susun Request Payload
+	// Deteksi MIME Type asli dari file yang diupload
+	mimeType := header.Header.Get("Content-Type")
+
+	// ==========================================
+	// LAYER VALIDASI TAMBAHAN (Defensive Programming)
+	// ==========================================
+	if mediaType == "image" && !strings.HasPrefix(mimeType, "image/") {
+		c.JSON(http.StatusBadRequest, domain.Response{
+			Status:  "error",
+			Message: fmt.Sprintf("Validasi Gagal: Anda menyetel media_type sebagai 'image', tapi file yang diunggah berformat '%s'", mimeType),
+		})
+		return
+	}
+
+	if mediaType == "video" && !strings.HasPrefix(mimeType, "video/") {
+		c.JSON(http.StatusBadRequest, domain.Response{
+			Status:  "error",
+			Message: fmt.Sprintf("Validasi Gagal: Anda menyetel media_type sebagai 'video', tapi file yang diunggah berformat '%s'", mimeType),
+		})
+		return
+	}
+	// ==========================================
+
+	// 2. Baca file ke dalam bytes
+	fileBytes, err := io.ReadAll(file)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, domain.Response{
+			Status:  "error",
+			Message: "Gagal membaca isi file",
+			Data:    err.Error(),
+		})
+		return
+	}
+
+	// 3. Susun Request Payload
 	req := domain.SendMediaReq{
 		To:        to,
 		IsGroup:   isGroup,
 		FileBytes: fileBytes,
 		FileName:  header.Filename,
-		MimeType:  header.Header.Get("Content-Type"),
+		MimeType:  mimeType,
 		Caption:   caption,
 		MediaType: mediaType,
 	}
 
-	// 5. Eksekusi Usecase
+	// 4. Eksekusi Usecase
 	msgID, err := h.uc.SendMedia(c.Request.Context(), req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, domain.Response{
 			Status:  "error",
-			Message: "Gagal mengirim media",
+			Message: "Gagal mengirim media ke WhatsApp",
 			Data:    err.Error(),
 		})
 		return

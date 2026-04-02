@@ -60,3 +60,37 @@ func (s *schedulerUsecase) ScheduleMessage(req domain.ScheduleReq) error {
 
 	return err
 }
+
+// Tambahkan fungsi ini di bawah fungsi ScheduleMessage yang sudah ada
+func (s *schedulerUsecase) ScheduleMedia(req domain.ScheduleMediaReq) error {
+	layout := "2006-01-02 15:04:05"
+	runTime, err := time.ParseInLocation(layout, req.RunAt, time.Local)
+	if err != nil {
+		return fmt.Errorf("format waktu salah, gunakan YYYY-MM-DD HH:MM:SS: %v", err)
+	}
+
+	// Mendaftarkan job satu kali jalan
+	_, err = s.cron.Every(1).LimitRunsTo(1).StartAt(runTime).Do(func() {
+		ctx := context.Background()
+
+		fmt.Printf("[%v] Mengeksekusi media terjadwal ke: %s\n", time.Now().Format(layout), req.To)
+
+		_, err := s.waUC.SendMedia(ctx, domain.SendMediaReq{
+			To:        req.To,
+			IsGroup:   req.IsGroup,
+			FileBytes: req.FileBytes,
+			FileName:  req.FileName,
+			MimeType:  req.MimeType,
+			Caption:   req.Caption,
+			MediaType: req.MediaType,
+		})
+
+		if err != nil {
+			fmt.Printf("Gagal mengirim media terjadwal ke %s: %v\n", req.To, err)
+		} else {
+			fmt.Printf("Sukses mengirim media terjadwal ke %s\n", req.To)
+		}
+	})
+
+	return err
+}

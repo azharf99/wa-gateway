@@ -53,7 +53,6 @@ func main() {
 	userRepo.SeedAdminUser(uRepo) // Jalankan seeder
 
 	// 1. Setup Repository
-	// aRepo := authRepo.NewAuthRepository()
 	waRepo := whatsapp.NewWhatsmeowRepository()
 	go func() {
 		if err := waRepo.Connect(); err != nil {
@@ -89,11 +88,11 @@ func main() {
 	}
 
 	r.Use(cors.New(cors.Config{
-		AllowOrigins:     allowedOrigins,
+		AllowOrigins:     allowedOrigins, // Alamat Frontend (Vite)
 		AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowHeaders:     []string{"Origin", "Content-Type", "Accept", "Authorization"},
 		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
+		AllowCredentials: true, // SANGAT PENTING: Mengizinkan pengiriman HttpOnly Cookie
 		MaxAge:           12 * time.Hour,
 	}))
 
@@ -107,8 +106,8 @@ func main() {
 	}
 
 	// Jalankan Server
-	fmt.Println("Server berjalan di port 8080...")
-	if err := r.Run(":8080"); err != nil {
+	fmt.Println("Server berjalan di port 8003...")
+	if err := r.Run(":8003"); err != nil {
 		panic(err)
 	}
 }

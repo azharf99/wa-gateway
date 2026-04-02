@@ -1,6 +1,6 @@
 services:
   wa-gateway:
-    build: .
+    image: wa-gateway:latest
     container_name: wa-gateway-service
     restart: unless-stopped
     ports:
@@ -13,4 +13,5 @@ services:
     environment:
       - TZ=Asia/Jakarta
       # Bapak bisa menambahkan environment variable lain di sini nanti
-      # - JWT_SECRET=super-rahasia
+      - JWT_SECRET=${JWT_SECRET}
+      - GIN_MODE=${GIN_MODE}

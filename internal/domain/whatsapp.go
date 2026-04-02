@@ -24,6 +24,8 @@ type GroupInfo struct {
 type WhatsAppRepository interface {
 	Connect() error
 	IsConnected() bool
+	GetQRCode() string
+	Logout() error
 	SendTextMessage(ctx context.Context, jid string, text string) (string, error)
 	SendMediaMessage(ctx context.Context, jid string, req SendMediaReq) (string, error)
 	GetJoinedGroups(ctx context.Context) ([]GroupInfo, error)
@@ -32,6 +34,8 @@ type WhatsAppRepository interface {
 // WhatsAppUsecase mendefinisikan kontrak untuk logic bisnis
 type WhatsAppUsecase interface {
 	CheckStatus() string
+	GetQRCode() string
+	Logout() error
 	SendMessage(ctx context.Context, req SendMessageReq) (string, error)
 	BroadcastMessages(req BroadcastReq)
 	SendMedia(ctx context.Context, req SendMediaReq) (string, error)

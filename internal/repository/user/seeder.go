@@ -3,6 +3,7 @@ package user
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"golang.org/x/crypto/bcrypt"
@@ -14,11 +15,11 @@ func SeedAdminUser(repo domain.UserRepository) {
 
 	// Jika belum ada user, buat user admin default
 	if count == 0 {
-		password := "AdminSekolah123" // Ganti ini saat production
+		password := os.Getenv("ADMIN_PASSWORD") // Ganti ini saat production
 		hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 
 		admin := &domain.User{
-			Username: "admin",
+			Username: os.Getenv("ADMIN_USERNAME"),
 			Password: string(hash),
 		}
 

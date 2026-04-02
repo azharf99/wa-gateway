@@ -29,6 +29,14 @@ func (uc *waUsecase) CheckStatus() string {
 	return "disconnected"
 }
 
+func (uc *waUsecase) GetQRCode() string {
+	return uc.repo.GetQRCode()
+}
+
+func (uc *waUsecase) Logout() error {
+	return uc.repo.Logout()
+}
+
 func (uc *waUsecase) SendMessage(ctx context.Context, req domain.SendMessageReq) (string, error) {
 	if req.To == "" || req.Message == "" {
 		return "", errors.New("nomor tujuan dan pesan tidak boleh kosong")
