@@ -57,14 +57,17 @@ func (uc *authUsecase) RefreshAccessToken(ctx context.Context, refreshTokenStrin
 	if !ok {
 		return "", errors.New("gagal membaca klaim token")
 	}
-
+	var userID float64
 	username := claims["username"].(string)
-	userID := claims["user_id"].(float64)
-
+	if claims["user_id"] != "" && claims["user_id"] != nil {
+		userID = claims["user_id"].(float64)
+	} else{
+		userID = 0
+	}
 	// 3. Buat Access Token baru (15 Menit)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
-		"user_id":  userID,
+		"user_id":  userID, 
 		"role":     "admin",
 		"exp":      time.Now().Add(time.Minute * 15).Unix(),
 	})
