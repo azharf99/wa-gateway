@@ -100,3 +100,27 @@ func (uc *authUsecase) generateTokens(username string) (string, string, error) {
 
 	return accessTokenString, refreshTokenString, nil
 }
+
+func (uc *authUsecase) ChangePassword(ctx context.Context, userID uint, req domain.ChangePasswordReq) error {
+	// 1. Ambil data user dari database
+	user, err := uc.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return errors.New("user tidak ditemukan")
+	}
+
+	// 2. Verifikasi password lama
+	err = bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.OldPassword))
+	if err != nil {
+		return errors.New("password lama tidak sesuai")
+	}
+
+	// 3. Hash password baru
+	newHash, err := bcrypt.GenerateFromPassword([]byte(req.NewPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return errors.New("gagal memproses password baru")
+	}
+
+	// 4. Update data user
+	user.Password = string(newHash)
+	return uc.userRepo.Update(ctx, user)
+}

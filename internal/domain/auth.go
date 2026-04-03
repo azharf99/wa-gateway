@@ -21,4 +21,5 @@ type AuthUsecase interface {
 	Login(ctx context.Context, req LoginReq) (string, string, error)
 	// Refresh menerima RefreshToken dari cookie dan mengembalikan AccessToken baru
 	RefreshAccessToken(ctx context.Context, refreshToken string) (string, error)
+	ChangePassword(ctx context.Context, userID uint, req ChangePasswordReq) error // WAJIB ADA
 }
