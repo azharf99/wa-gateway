@@ -20,7 +20,7 @@ func NewSchedulerHandler(r *gin.RouterGroup, uc domain.SchedulerUsecase) {
 		uc: uc,
 	}
 
-	api := r.Group("/api/v1/schedule")
+	api := r.Group("/api/schedule")
 	{
 		api.POST("/message", handler.ScheduleMessage)
 		api.POST("/media", handler.ScheduleMedia) // Tambahkan rute ini

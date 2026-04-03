@@ -14,7 +14,7 @@ type ReminderHandler struct {
 func NewReminderHandler(r *gin.RouterGroup, uc domain.ReminderUsecase) {
 	handler := &ReminderHandler{uc: uc}
 
-	group := r.Group("/api/v1/reminders")
+	group := r.Group("/api/reminders")
 	{
 		group.GET("/list", handler.List)
 		group.POST("/create", handler.Create)

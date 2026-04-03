@@ -21,7 +21,7 @@ func NewWhatsAppHandler(r *gin.RouterGroup, uc domain.WhatsAppUsecase) {
 		uc: uc,
 	}
 
-	api := r.Group("/api/v1/whatsapp")
+	api := r.Group("/api/whatsapp")
 	{
 		api.GET("/status", handler.Status)
 		api.GET("/qr", handler.GetQRCode)

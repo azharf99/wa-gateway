@@ -18,7 +18,7 @@ func NewContactHandler(r *gin.RouterGroup, uc domain.ContactUsecase) {
 		uc: uc,
 	}
 
-	api := r.Group("/api/v1/contacts")
+	api := r.Group("/api/contacts")
 	{
 		api.GET("/list", handler.ListContacts)
 		api.POST("/create", handler.AddContact)

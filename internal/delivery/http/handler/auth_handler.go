@@ -16,7 +16,7 @@ type AuthHandler struct {
 func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	handler := &AuthHandler{uc: uc}
 
-	authRoutes := r.Group("/api/v1/auth")
+	authRoutes := r.Group("/api/auth")
 	{
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh", handler.Refresh)
@@ -24,9 +24,9 @@ func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 		authRoutes.POST("/logout", handler.Logout)
 	}
 	r.Use(middleware.JWTAuthMiddleware())
-	r.PUT("/api/v1/auth/change-password", handler.ChangePassword)
+	r.PUT("/api/auth/change-password", handler.ChangePassword)
 
-	api := r.Group("/auth/api-key")
+	api := r.Group("/api/auth/api-key")
 	api.Use(middleware.JWTAuthMiddleware()) // Gunakan middleware JWT yang sudah ada
 	{
 		api.GET("/", func(c *gin.Context) {
