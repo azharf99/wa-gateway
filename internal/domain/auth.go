@@ -4,7 +4,7 @@ import "context"
 
 type LoginReq struct {
 	Username string `json:"username" binding:"required"`
-	Password string `json:"password" binding:"required min=6"`
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 // TokenResponse sekarang hanya mengembalikan Access Token ke body JSON
