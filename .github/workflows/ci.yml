@@ -49,7 +49,17 @@ jobs:
         # Format penamaan di Docker Hub: username_dockerhub/nama_image:tag
         tags: ${{ secrets.DOCKERHUB_USERNAME }}/wa-gateway:latest
 
-    # 3. SSH ke VPS untuk eksekusi Pull & Restart
+    # 3. Copy file docker-compose.yml ke VPS menggunakan SCP
+    - name: Copy docker-compose.yml to VPS via SCP
+      uses: appleboy/scp-action@v0.1.7
+      with:
+        host: ${{ secrets.VPS_HOST }}
+        username: ${{ secrets.VPS_USERNAME }}
+        key: ${{ secrets.VPS_SSH_KEY }}
+        source: "docker-compose.yml" # File yang ingin dikirim
+        target: "/opt/wa-gateway"    # Folder tujuan di VPS
+
+    # 4. SSH ke VPS untuk eksekusi Pull & Restart
     - name: Deploy to VPS via SSH
       uses: appleboy/ssh-action@v0.1.10
       with:
@@ -57,13 +67,13 @@ jobs:
         username: ${{ secrets.VPS_USERNAME }}
         key: ${{ secrets.VPS_SSH_KEY }}
         script: |
-          mkdir -p /opt/wa-gateway
           cd /opt/wa-gateway
-          
-          curl -O https://raw.githubusercontent.com/${{ github.repository }}/main/docker-compose.yml
           
           # Tarik image terbaru dari Docker Hub
           docker compose pull
           
+          # Eksekusi docker compose
           docker compose up -d
+          
+          # Bersihkan image yang tidak terpakai
           docker image prune -f

@@ -94,6 +94,7 @@ func (uc *authUsecase) generateTokens(username string, userID uint) (string, str
 	// Refresh Token (7 Hari)
 	refreshToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
+		"user_id":  userID,
 		"exp":      time.Now().Add(time.Hour * 24 * 7).Unix(),
 	})
 	refreshTokenString, err := refreshToken.SignedString(jwtRefreshSecret)
