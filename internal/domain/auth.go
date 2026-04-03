@@ -17,10 +17,12 @@ type AuthRepository interface {
 }
 
 type AuthUsecase interface {
-	// Login sekarang mengembalikan (AccessToken, RefreshToken, Error)
 	Login(ctx context.Context, req LoginReq) (string, string, error)
 	GetUserById(ctx context.Context, userID uint) (*User, error)
-	// Refresh menerima RefreshToken dari cookie dan mengembalikan AccessToken baru
 	RefreshAccessToken(ctx context.Context, refreshToken string) (string, error)
-	ChangePassword(ctx context.Context, userID uint, req ChangePasswordReq) error // WAJIB ADA
+	ChangePassword(ctx context.Context, userID uint, req ChangePasswordReq) error
+
+	// Fitur API Key
+	GenerateApiKey(ctx context.Context, userID uint) (string, error)
+	GetApiKey(ctx context.Context, userID uint) (string, error)
 }

@@ -16,7 +16,6 @@ type AuthHandler struct {
 func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	handler := &AuthHandler{uc: uc}
 
-	
 	authRoutes := r.Group("/api/v1/auth")
 	{
 		authRoutes.POST("/login", handler.Login)
@@ -26,6 +25,30 @@ func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	}
 	r.Use(middleware.JWTAuthMiddleware())
 	r.PUT("/api/v1/auth/change-password", handler.ChangePassword)
+
+	api := r.Group("/auth/api-key")
+	api.Use(middleware.JWTAuthMiddleware()) // Gunakan middleware JWT yang sudah ada
+	{
+		api.GET("/", func(c *gin.Context) {
+			userID := c.MustGet("user_id").(uint)
+			key, err := uc.GetApiKey(c.Request.Context(), userID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, domain.Response{Status: "success", Data: gin.H{"api_key": key}})
+		})
+
+		api.POST("/regenerate", func(c *gin.Context) {
+			userID := c.MustGet("user_id").(uint)
+			newKey, err := uc.GenerateApiKey(c.Request.Context(), userID)
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
+				return
+			}
+			c.JSON(http.StatusOK, domain.Response{Status: "success", Message: "API Key berhasil diregenerate", Data: gin.H{"api_key": newKey}})
+		})
+	}
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
@@ -124,7 +147,7 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 	}
 	// AMBIL USER ID DARI JWT CONTEXT
 	// (Pastikan string "user_id" sesuai dengan key yang kamu set di jwt_middleware.go)
-	userIDAny, exists := c.Get("user_id") 
+	userIDAny, exists := c.Get("user_id")
 	if !exists {
 		c.JSON(http.StatusUnauthorized, domain.Response{Status: "error", Message: "Sesi tidak valid atau belum login"})
 		return

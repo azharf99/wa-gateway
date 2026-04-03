@@ -2,6 +2,8 @@ package auth
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"os"
 	"time"
@@ -61,13 +63,13 @@ func (uc *authUsecase) RefreshAccessToken(ctx context.Context, refreshTokenStrin
 	username := claims["username"].(string)
 	if claims["user_id"] != "" && claims["user_id"] != nil {
 		userID = claims["user_id"].(float64)
-	} else{
+	} else {
 		userID = 0
 	}
 	// 3. Buat Access Token baru (15 Menit)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
-		"user_id":  userID, 
+		"user_id":  userID,
 		"role":     "admin",
 		"exp":      time.Now().Add(time.Minute * 15).Unix(),
 	})
@@ -134,4 +136,38 @@ func (uc *authUsecase) ChangePassword(ctx context.Context, userID uint, req doma
 	// 4. Update data user
 	user.Password = string(newHash)
 	return uc.userRepo.Update(ctx, user)
+}
+
+// Helper untuk generate random string yang aman secara kriptografi
+func generateSecureToken(length int) string {
+	b := make([]byte, length)
+	if _, err := rand.Read(b); err != nil {
+		return ""
+	}
+	return hex.EncodeToString(b)
+}
+
+func (uc *authUsecase) GetApiKey(ctx context.Context, userID uint) (string, error) {
+	user, err := uc.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return "", errors.New("user tidak ditemukan")
+	}
+	return user.ApiKey, nil
+}
+
+func (uc *authUsecase) GenerateApiKey(ctx context.Context, userID uint) (string, error) {
+	user, err := uc.userRepo.GetByID(ctx, userID)
+	if err != nil {
+		return "", errors.New("user tidak ditemukan")
+	}
+
+	// Generate key baru dengan prefix "wa_" agar mudah dikenali
+	newKey := "wa_" + generateSecureToken(32)
+
+	user.ApiKey = newKey
+	if err := uc.userRepo.Update(ctx, user); err != nil {
+		return "", errors.New("gagal menyimpan API Key baru")
+	}
+
+	return newKey, nil
 }

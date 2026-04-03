@@ -13,7 +13,6 @@ import (
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
 	"go.mau.fi/whatsmeow/store/sqlstore"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 
@@ -23,6 +22,7 @@ import (
 	"github.com/azharf99/wa-gateway/internal/repository/contact"
 	"github.com/azharf99/wa-gateway/internal/repository/reminder"
 	"github.com/azharf99/wa-gateway/internal/repository/whatsapp"
+	"github.com/azharf99/wa-gateway/internal/utils"
 
 	userRepo "github.com/azharf99/wa-gateway/internal/repository/user"
 	authUC "github.com/azharf99/wa-gateway/internal/usecase/auth"
@@ -31,26 +31,6 @@ import (
 	schedUsecase "github.com/azharf99/wa-gateway/internal/usecase/scheduler"
 	waUsecase "github.com/azharf99/wa-gateway/internal/usecase/whatsapp"
 )
-
-func seedAdmin(db *gorm.DB) {
-	var count int64
-	db.Model(&domain.User{}).Where("username = ?", "admin").Count(&count)
-
-	hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-	if count == 0 {
-		adminUser := domain.User{
-			Username: "admin",
-			Password: string(hash),
-		}
-		if err := db.Create(&adminUser).Error; err != nil {
-			fmt.Println("Gagal membuat akun admin:", err)
-		} else {
-			fmt.Println("✅ SEEDER: Akun Admin berhasil dibuat (admin / admin123)!")
-		}
-	} else {
-		fmt.Println("✅ SEEDER: Akun Admin sudah eksis, melewati proses seeding.")
-	}
-}
 
 func main() {
 	err := godotenv.Load()
@@ -81,7 +61,7 @@ func main() {
 	}
 
 	// 3. JALANKAN SEEDER
-	seedAdmin(db)
+	utils.SeedAdmin(db)
 
 	scheduler := gocron.NewScheduler(time.Local)
 	scheduler.StartAsync()
@@ -154,7 +134,7 @@ func main() {
 
 	handler.NewAuthHandler(r, aUC)
 	protected := r.Group("/")
-	protected.Use(middleware.JWTAuthMiddleware()) // Pasang gemboknya di sini
+	protected.Use(middleware.SmartAuthMiddleware(uRepo)) // Pasang gemboknya di sini
 	{
 		// Oper route group yang sudah dilindungi ke handler
 		handler.NewWhatsAppHandler(protected, waUC)

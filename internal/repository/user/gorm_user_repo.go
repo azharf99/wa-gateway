@@ -40,3 +40,11 @@ func (r *gormUserRepo) Count(ctx context.Context) (int64, error) {
 func (r *gormUserRepo) Update(ctx context.Context, user *domain.User) error {
 	return r.db.WithContext(ctx).Save(user).Error
 }
+
+func (r *gormUserRepo) GetByApiKey(ctx context.Context, apiKey string) (*domain.User, error) {
+	var user domain.User
+	if err := r.db.WithContext(ctx).Where("api_key = ?", apiKey).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
