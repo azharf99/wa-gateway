@@ -2,6 +2,7 @@ package handler
 
 import (
 	"net/http"
+	"strconv"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"github.com/gin-gonic/gin"
@@ -18,6 +19,7 @@ func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	{
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh", handler.Refresh)
+		authRoutes.POST("/change-password", handler.ChangePassword)
 		authRoutes.POST("/logout", handler.Logout)
 	}
 }
@@ -88,5 +90,31 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, domain.Response{
 		Status:  "success",
 		Message: "Logout berhasil",
+	})
+}
+
+func (h *AuthHandler) ChangePassword(c *gin.Context) {
+	var req domain.ChangePasswordReq
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "Payload tidak valid"})
+		return
+	}
+	userID, err := strconv.Atoi(c.Query("user_id"))
+	// parse userID ke uint dan pastikan valid
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "User ID tidak valid"})
+		return
+	}
+	if userID <= 0 {
+		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "User ID tidak valid"})
+		return
+	}
+	if err := h.uc.ChangePassword(c.Request.Context(), uint(userID), req); err != nil {
+		c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, domain.Response{
+		Status:  "success",
+		Message: "Password berhasil diubah",
 	})
 }
