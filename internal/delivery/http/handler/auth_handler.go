@@ -119,16 +119,27 @@ func (h *AuthHandler) ChangePassword(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "Payload tidak valid"})
 		return
 	}
-	userID, err := strconv.Atoi(c.Query("user_id"))
-	// parse userID ke uint dan pastikan valid
-	if err != nil {
-		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "User ID tidak valid"})
+	// AMBIL USER ID DARI JWT CONTEXT
+	// (Pastikan string "user_id" sesuai dengan key yang kamu set di jwt_middleware.go)
+	userIDAny, exists := c.Get("user_id") 
+	if !exists {
+		c.JSON(http.StatusUnauthorized, domain.Response{Status: "error", Message: "Sesi tidak valid atau belum login"})
 		return
 	}
-	if userID <= 0 {
-		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "User ID tidak valid"})
+	// JWT biasanya menyimpan angka sebagai float64 setelah di-parse
+	var userID uint
+	switch v := userIDAny.(type) {
+	case float64:
+		userID = uint(v)
+	case uint:
+		userID = v
+	case int:
+		userID = uint(v)
+	default:
+		c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: "Gagal memproses User ID"})
 		return
 	}
+
 	if err := h.uc.ChangePassword(c.Request.Context(), uint(userID), req); err != nil {
 		c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
 		return

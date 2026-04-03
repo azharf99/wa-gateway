@@ -14,7 +14,6 @@ import (
 // Harus sama dengan secret di Usecase
 var jwtAccessSecret = []byte(os.Getenv("JWT_SECRET"))
 
-
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")
@@ -44,7 +43,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			// PERBAIKAN: Gunakan jwtAccessSecret
-			return jwtAccessSecret, nil 
+			return jwtAccessSecret, nil
 		})
 
 		if err != nil || !token.Valid {
@@ -59,6 +58,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		// Jika sukses, ekstrak payload (claims) dan simpan di context Gin
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			c.Set("username", claims["username"])
+			c.Set("user_id", claims["user_id"])
 			c.Set("role", claims["role"])
 		}
 

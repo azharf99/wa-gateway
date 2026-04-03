@@ -36,7 +36,7 @@ func (uc *authUsecase) Login(ctx context.Context, req domain.LoginReq) (string, 
 		return "", "", errors.New("username atau password salah")
 	}
 
-	return uc.generateTokens(user.Username)
+	return uc.generateTokens(user.Username, user.ID)
 }
 
 func (uc *authUsecase) RefreshAccessToken(ctx context.Context, refreshTokenString string) (string, error) {
@@ -59,10 +59,12 @@ func (uc *authUsecase) RefreshAccessToken(ctx context.Context, refreshTokenStrin
 	}
 
 	username := claims["username"].(string)
+	userID := claims["user_id"].(float64)
 
 	// 3. Buat Access Token baru (15 Menit)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
+		"user_id":  userID,
 		"role":     "admin",
 		"exp":      time.Now().Add(time.Minute * 15).Unix(),
 	})
@@ -76,10 +78,11 @@ func (uc *authUsecase) RefreshAccessToken(ctx context.Context, refreshTokenStrin
 }
 
 // Helper untuk men-generate kedua token
-func (uc *authUsecase) generateTokens(username string) (string, string, error) {
+func (uc *authUsecase) generateTokens(username string, userID uint) (string, string, error) {
 	// Access Token (15 Menit)
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"username": username,
+		"user_id":  userID,
 		"role":     "admin",
 		"exp":      time.Now().Add(time.Minute * 15).Unix(),
 	})
