@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -38,10 +39,8 @@ func seedAdmin(db *gorm.DB) {
 	hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
 	if count == 0 {
 		adminUser := domain.User{
-			Username:  "admin",
-			Password:  string(hash),
-			CreatedAt: time.Now().Local().String(),
-			UpdatedAt: time.Now().Local().String(),
+			Username: "admin",
+			Password: string(hash),
 		}
 		if err := db.Create(&adminUser).Error; err != nil {
 			fmt.Println("Gagal membuat akun admin:", err)
@@ -100,6 +99,10 @@ func main() {
 
 	// Kita pasang "postgres" dialect, URI-nya pakai DSN, nil log
 	container := sqlstore.NewWithDB(sqlDB, "postgres", nil)
+	err = container.Upgrade(context.Background())
+	if err != nil {
+		panic(fmt.Sprintf("Gagal migrate tabel whatsmeow: %v", err))
+	}
 	waRepo := whatsapp.NewWhatsmeowRepository(container) // Sesuaikan constructor repo Bapak
 
 	go func() {
