@@ -2,93 +2,48 @@ package contact
 
 import (
 	"context"
-	"database/sql"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
-type sqliteContactRepo struct {
-	db *sql.DB
+type gormContactRepo struct {
+	db *gorm.DB
 }
 
-func NewSqliteContactRepository(db *sql.DB) domain.ContactRepository {
-	query := `
-	CREATE TABLE IF NOT EXISTS contacts (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		name TEXT NOT NULL,
-		phone TEXT UNIQUE NOT NULL,
-		category TEXT
-	);`
-	_, err := db.Exec(query)
-	if err != nil {
-		panic(err)
-	}
-	return &sqliteContactRepo{db: db}
+func NewGormContactRepository(db *gorm.DB) domain.ContactRepository {
+	return &gormContactRepo{db: db}
 }
 
-func (r *sqliteContactRepo) Create(ctx context.Context, c *domain.Contact) error {
-	query := `INSERT INTO contacts (name, phone, category) VALUES (?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, c.Name, c.Phone, c.Category)
-	return err
+func (r *gormContactRepo) Create(ctx context.Context, c *domain.Contact) error {
+	return r.db.WithContext(ctx).Create(c).Error
 }
 
-func (r *sqliteContactRepo) GetAll(ctx context.Context) ([]domain.Contact, error) {
-	rows, err := r.db.QueryContext(ctx, "SELECT id, name, phone, category FROM contacts ORDER BY name ASC")
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
+func (r *gormContactRepo) GetAll(ctx context.Context) ([]domain.Contact, error) {
 	var contacts []domain.Contact
-	for rows.Next() {
-		var c domain.Contact
-		rows.Scan(&c.ID, &c.Name, &c.Phone, &c.Category)
-		contacts = append(contacts, c)
-	}
-	return contacts, nil
+	err := r.db.WithContext(ctx).Order("name asc").Find(&contacts).Error
+	return contacts, err
 }
 
-func (r *sqliteContactRepo) GetByPhone(ctx context.Context, phone string) (*domain.Contact, error) {
+func (r *gormContactRepo) GetByPhone(ctx context.Context, phone string) (*domain.Contact, error) {
 	var c domain.Contact
-	err := r.db.QueryRowContext(ctx, "SELECT id, name, phone, category FROM contacts WHERE phone = ?", phone).
-		Scan(&c.ID, &c.Name, &c.Phone, &c.Category)
-	if err != nil {
-		return nil, err
-	}
-	return &c, nil
+	err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&c).Error
+	return &c, err
 }
 
-func (r *sqliteContactRepo) Update(ctx context.Context, c *domain.Contact) error {
-	_, err := r.db.ExecContext(ctx, "UPDATE contacts SET name = ?, phone = ?, category = ? WHERE id = ?", c.Name, c.Phone, c.Category, c.ID)
-	return err
+func (r *gormContactRepo) Update(ctx context.Context, c *domain.Contact) error {
+	return r.db.WithContext(ctx).Save(c).Error
 }
 
-func (r *sqliteContactRepo) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.ExecContext(ctx, "DELETE FROM contacts WHERE id = ?", id)
-	return err
+func (r *gormContactRepo) Delete(ctx context.Context, id int64) error {
+	return r.db.WithContext(ctx).Delete(&domain.Contact{}, id).Error
 }
 
-func (r *sqliteContactRepo) ImportCSV(ctx context.Context, contacts []domain.Contact) error {
-	tx, err := r.db.BeginTx(ctx, nil)
-	if err != nil {
-		return err
-	}
-
-	// Gunakan format "INSERT OR REPLACE" agar jika ada nomor yang sama, data terbaru yang diambil
-	stmt, err := tx.PrepareContext(ctx, "INSERT OR REPLACE INTO contacts (name, phone, category) VALUES (?, ?, ?)")
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	defer stmt.Close()
-
-	for _, c := range contacts {
-		_, err := stmt.ExecContext(ctx, c.Name, c.Phone, c.Category)
-		if err != nil {
-			tx.Rollback()
-			return err
-		}
-	}
-
-	return tx.Commit()
+// UPSERT (Insert or Update) ala GORM
+func (r *gormContactRepo) ImportCSV(ctx context.Context, contacts []domain.Contact) error {
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "phone"}},                       // Konflik terjadi jika phone sama
+		DoUpdates: clause.AssignmentColumns([]string{"name", "category"}), // Update kolom ini
+	}).Create(&contacts).Error
 }

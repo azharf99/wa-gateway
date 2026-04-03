@@ -1,19 +1,26 @@
 services:
   wa-gateway:
     image: azharfa/wa-gateway:latest
-    container_name: wa-gateway-service
+    container_name: wa-gateway
     restart: unless-stopped
     ports:
       # Format: "Port_VPS : Port_Internal_Container"
       - "8003:8080"
-    volumes:
-      # Mapping folder wa-data di VPS ke folder /app/data di dalam container
-      # Ini menjaga sessions.db aman meskipun container dihapus/diupdate
-      - ./wa-data:/app/data
     environment:
       - TZ=Asia/Jakarta
+      - DB_HOST=gothub_db 
+      - DB_USER=${DB_USER:-postgres}
+      - DB_PASSWORD=${DB_PASSWORD} # Gunakan password database Project 1
+      - DB_NAME=${DB_NAME:-wa_gateway_db} # Arahkan ke database yang baru kita buat
+      - DB_PORT=5432
       - JWT_SECRET=${JWT_SECRET:-ketikan_disini_secret_anda}
       - JWT_REFRESH_SECRET=${JWT_REFRESH_SECRET:-ketikan_disini_secret_anda}
       - ADMIN_USERNAME=${ADMIN_USERNAME:-admin}
       - ADMIN_PASSWORD=${ADMIN_PASSWORD:-AdminSekolah123}
       - GIN_MODE=release
+
+# Masukkan Project 3 ke jaringan yang sama dengan Project 1
+networks:
+  default:
+    external: true
+    name: shared-network

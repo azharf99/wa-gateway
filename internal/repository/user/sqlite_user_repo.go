@@ -2,57 +2,31 @@ package user
 
 import (
 	"context"
-	"database/sql"
-	"errors"
-	"time"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
+	"gorm.io/gorm"
 )
 
-type sqliteUserRepo struct {
-	db *sql.DB
+type gormUserRepo struct {
+	db *gorm.DB
 }
 
-func NewSqliteUserRepository(db *sql.DB) domain.UserRepository {
-	// Buat tabel users jika belum ada
-	query := `
-	CREATE TABLE IF NOT EXISTS users (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		username TEXT UNIQUE NOT NULL,
-		password TEXT NOT NULL,
-		created_at DATETIME
-	);`
-	_, err := db.Exec(query)
-	if err != nil {
-		panic(err)
-	}
-
-	return &sqliteUserRepo{db: db}
+func NewGormUserRepository(db *gorm.DB) domain.UserRepository {
+	return &gormUserRepo{db: db}
 }
 
-func (r *sqliteUserRepo) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
-	query := `SELECT id, username, password, created_at FROM users WHERE username = ?`
-	row := r.db.QueryRowContext(ctx, query, username)
-
-	var u domain.User
-	err := row.Scan(&u.ID, &u.Username, &u.Password, &u.CreatedAt)
-	if err != nil {
-		if errors.Is(err, sql.ErrNoRows) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &u, nil
+func (r *gormUserRepo) Create(ctx context.Context, rem *domain.User) error {
+	return r.db.WithContext(ctx).Create(rem).Error
 }
 
-func (r *sqliteUserRepo) Create(ctx context.Context, u *domain.User) error {
-	query := `INSERT INTO users (username, password, created_at) VALUES (?, ?, ?)`
-	_, err := r.db.ExecContext(ctx, query, u.Username, u.Password, time.Now())
-	return err
+func (r *gormUserRepo) GetByUsername(ctx context.Context, username string) (*domain.User, error) {
+	var rem domain.User
+	err := r.db.WithContext(ctx).Where("username = ?", username).First(&rem).Error
+	return &rem, err
 }
 
-func (r *sqliteUserRepo) Count(ctx context.Context) (int64, error) {
+func (r *gormUserRepo) Count(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM users").Scan(&count)
+	err := r.db.WithContext(ctx).Model(&domain.User{}).Count(&count).Error
 	return count, err
 }

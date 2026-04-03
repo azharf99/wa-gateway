@@ -91,7 +91,7 @@ func (uc *reminderUsecase) scheduleNext(rem *domain.Reminder) {
 	uc.cron.RemoveByTag(tag)
 
 	uc.cron.Every(1).LimitRunsTo(1).StartAt(t).Tag(tag).Do(func() {
-		uc.ProcessReminder(context.Background(), rem.ID)
+		uc.ProcessReminder(context.Background(), int64(rem.ID))
 	})
 }
 

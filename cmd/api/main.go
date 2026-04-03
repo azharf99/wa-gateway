@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"fmt"
 	"log"
 	"os"
@@ -12,13 +11,18 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-co-op/gocron"
 	"github.com/joho/godotenv"
+	"go.mau.fi/whatsmeow/store/sqlstore"
+	"golang.org/x/crypto/bcrypt"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
 
 	"github.com/azharf99/wa-gateway/internal/delivery/http/handler"
 	"github.com/azharf99/wa-gateway/internal/delivery/http/middleware"
+	"github.com/azharf99/wa-gateway/internal/domain"
 	"github.com/azharf99/wa-gateway/internal/repository/contact"
+	"github.com/azharf99/wa-gateway/internal/repository/reminder"
 	"github.com/azharf99/wa-gateway/internal/repository/whatsapp"
 
-	reminderRepo "github.com/azharf99/wa-gateway/internal/repository/reminder"
 	userRepo "github.com/azharf99/wa-gateway/internal/repository/user"
 	authUC "github.com/azharf99/wa-gateway/internal/usecase/auth"
 	contactUsecase "github.com/azharf99/wa-gateway/internal/usecase/contact"
@@ -27,43 +31,73 @@ import (
 	waUsecase "github.com/azharf99/wa-gateway/internal/usecase/whatsapp"
 )
 
+func seedAdmin(db *gorm.DB) {
+	var count int64
+	db.Model(&domain.User{}).Where("username = ?", "admin").Count(&count)
+
+	hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+	if count == 0 {
+		adminUser := domain.User{
+			Username:  "admin",
+			Password:  string(hash),
+			CreatedAt: time.Now().Local().String(),
+			UpdatedAt: time.Now().Local().String(),
+		}
+		if err := db.Create(&adminUser).Error; err != nil {
+			fmt.Println("Gagal membuat akun admin:", err)
+		} else {
+			fmt.Println("✅ SEEDER: Akun Admin berhasil dibuat (admin / admin123)!")
+		}
+	} else {
+		fmt.Println("✅ SEEDER: Akun Admin sudah eksis, melewati proses seeding.")
+	}
+}
+
 func main() {
 	err := godotenv.Load()
 	if err != nil {
 		log.Println("Peringatan: File .env tidak ditemukan, membaca environment variable dari sistem (Docker/GCP)")
 	}
 
-	// Atur Gin Mode sesuai environment (release untuk GCP, debug untuk lokal)
-	ginMode := os.Getenv("GIN_MODE")
-
-	var db *sql.DB
-
-	if ginMode == "release" {
-		gin.SetMode(gin.ReleaseMode)
-		// 1. Inisialisasi Database SQLite (Satu koneksi untuk semua)
-		db, err = sql.Open("sqlite", "file:data/sessions.db?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
-		if err != nil {
-			panic(err)
-		}
-	} else {
-		// 1. Inisialisasi Database SQLite (Satu koneksi untuk semua)
-		db, err = sql.Open("sqlite", "file:sessions.db?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)")
-		if err != nil {
-			panic(err)
-		}
+	// 1. KONEKSI POSTGRESQL + GORM
+	dsn := os.Getenv("DATABASE_URL")
+	if dsn == "" {
+		dsn = "host=nama_container_postgres user=postgres password=rahasia dbname=wa_gateway port=5432 sslmode=disable"
 	}
 
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		panic(fmt.Sprintf("Gagal inisialisasi GORM PostgreSQL: %v", err))
+	}
+	fmt.Println("✅ Database PostgreSQL Terhubung via GORM!")
+
+	// 2. AUTO MIGRATE (Otomatis membuat tabel Contacts, Reminders, Users)
+	err = db.AutoMigrate(&domain.User{}, &domain.Contact{}, &domain.Reminder{})
+	if err != nil {
+		panic(fmt.Sprintf("Gagal AutoMigrate: %v", err))
+	}
+
+	// 3. JALANKAN SEEDER
+	seedAdmin(db)
+
 	scheduler := gocron.NewScheduler(time.Local)
-	scheduler.StartAsync() // Jalankan mesin scheduler
+	scheduler.StartAsync()
 
-	// 2. Setup Repository & Seeder
-	uRepo := userRepo.NewSqliteUserRepository(db)
-	contactRepo := contact.NewSqliteContactRepository(db)
-	remRepo := reminderRepo.NewSqliteReminderRepository(db)
-	userRepo.SeedAdminUser(uRepo) // Jalankan seeder
+	// 4. INIT REPOSITORY GORM
+	uRepo := userRepo.NewGormUserRepository(db)
+	contactRepo := contact.NewGormContactRepository(db)
+	remRepo := reminder.NewGormReminderRepository(db)
 
-	// 1. Setup Repository
-	waRepo := whatsapp.NewWhatsmeowRepository()
+	// ==============================================================
+	// 5. SETUP WHATSMEOW (Whatsmeow butuh driver asli, bukan GORM)
+	// ==============================================================
+	// Kita bisa mengekstrak koneksi SQL asli dari GORM:
+	sqlDB, _ := db.DB()
+
+	// Kita pasang "postgres" dialect, URI-nya pakai DSN, nil log
+	container := sqlstore.NewWithDB(sqlDB, "postgres", nil)
+	waRepo := whatsapp.NewWhatsmeowRepository(container) // Sesuaikan constructor repo Bapak
+
 	go func() {
 		if err := waRepo.Connect(); err != nil {
 			fmt.Println("Gagal koneksi WA:", err)

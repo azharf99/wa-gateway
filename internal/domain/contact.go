@@ -3,10 +3,10 @@ package domain
 import "context"
 
 type Contact struct {
-	ID       int64  `json:"id"`
-	Name     string `json:"name" binding:"required"`                                                    // Nama lengkap kontak
-	Phone    string `json:"phone" binding:"required"`                                                   // Format: 62812...
-	Category string `json:"category" default:"Siswa" binding:"oneof=Siswa Orangtua Guru Karyawan Umum"` // Misal: "Siswa", "Wali Murid", "Guru"
+	ID       uint   `json:"id" gorm:"primaryKey"`
+	Name     string `json:"name" gorm:"type:varchar(255);not null"`
+	Phone    string `json:"phone" gorm:"type:varchar(50);uniqueIndex;not null"`
+	Category string `json:"category" gorm:"type:varchar(100)"`
 }
 
 type ContactRepository interface {

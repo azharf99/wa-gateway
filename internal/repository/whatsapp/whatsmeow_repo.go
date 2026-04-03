@@ -3,13 +3,11 @@ package whatsapp
 import (
 	"context"
 	"fmt"
-	"os"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"go.mau.fi/whatsmeow"
 	"go.mau.fi/whatsmeow/store/sqlstore"
 	"go.mau.fi/whatsmeow/types"
-	waLog "go.mau.fi/whatsmeow/util/log"
 
 	"go.mau.fi/whatsmeow/proto/waE2E"
 	"google.golang.org/protobuf/proto"
@@ -22,29 +20,15 @@ type whatsmeowRepo struct {
 	qrCode string
 }
 
-func NewWhatsmeowRepository() domain.WhatsAppRepository {
-	dbLog := waLog.Stdout("Database", "WARN", true)
-
-	ginMode := os.Getenv("GIN_MODE")
-	var dsn string
-	if ginMode == "release" {
-		dsn = "file:data/sessions.db?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
-	} else {
-		dsn = "file:sessions.db?_pragma=foreign_keys(1)&_pragma=journal_mode(WAL)&_pragma=busy_timeout(5000)&_pragma=synchronous(NORMAL)"
-	}
-
-	container, err := sqlstore.New(context.Background(), "sqlite", dsn, dbLog)
-	if err != nil {
-		panic(err)
-	}
-
+func NewWhatsmeowRepository(container *sqlstore.Container) domain.WhatsAppRepository {
+	// Ambil device pertama dari database Postgres
 	deviceStore, err := container.GetFirstDevice(context.Background())
 	if err != nil {
-		panic(err)
+		panic(fmt.Sprintf("Gagal mengambil device store: %v", err))
 	}
 
-	clientLog := waLog.Stdout("Client", "WARN", true)
-	client := whatsmeow.NewClient(deviceStore, clientLog)
+	// Inisialisasi client Whatsmeow dengan device store dari Postgres
+	client := whatsmeow.NewClient(deviceStore, nil)
 
 	return &whatsmeowRepo{
 		client: client,

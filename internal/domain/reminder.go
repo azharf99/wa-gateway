@@ -3,13 +3,13 @@ package domain
 import "context"
 
 type Reminder struct {
-	ID           int64  `json:"id"`
-	To           string `json:"to"`
-	Message      string `json:"message"`
+	ID           uint   `json:"id" gorm:"primaryKey"`
+	To           string `json:"to" gorm:"type:varchar(255);not null"`
+	Message      string `json:"message" gorm:"type:text;not null"`
 	IsGroup      bool   `json:"is_group"`
-	IntervalDays int    `json:"interval_days"` // Nilai "n" hari pengulangan
-	NextRun      string `json:"next_run"`      // Format: YYYY-MM-DD HH:MM:SS
-	IsActive     bool   `json:"is_active"`
+	IntervalDays int    `json:"interval_days"`
+	NextRun      string `json:"next_run" gorm:"type:timestamp"`
+	IsActive     bool   `json:"is_active" gorm:"default:true"`
 }
 
 type ReminderRepository interface {

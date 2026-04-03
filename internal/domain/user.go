@@ -2,14 +2,15 @@ package domain
 
 import (
 	"context"
-	"time"
 )
 
 type User struct {
-	ID        int64     `json:"id"`
-	Username  string    `json:"username"`
-	Password  string    `json:"-"` // Password tidak akan muncul di JSON
-	CreatedAt time.Time `json:"created_at"`
+	ID        uint   `json:"id" gorm:"primaryKey"`
+	Username  string `json:"username" gorm:"type:varchar(100);uniqueIndex;not null"`
+	Password  string `json:"password" gorm:"type:text;not null"`
+	CreatedAt string `json:"created_at" gorm:"type:timestamp"`
+	UpdatedAt string `json:"updated_at" gorm:"type:timestamp"`
+	DeletedAt string `json:"deleted_at" gorm:"type:timestamp"`
 }
 
 type UserRepository interface {
