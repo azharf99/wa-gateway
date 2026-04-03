@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/azharf99/wa-gateway/internal/delivery/http/middleware"
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"github.com/gin-gonic/gin"
 )
@@ -15,14 +16,16 @@ type AuthHandler struct {
 func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	handler := &AuthHandler{uc: uc}
 
+	
 	authRoutes := r.Group("/api/v1/auth")
 	{
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh", handler.Refresh)
 		authRoutes.GET("/user/:id", handler.GetUser)
-		authRoutes.PUT("/change-password", handler.ChangePassword)
 		authRoutes.POST("/logout", handler.Logout)
 	}
+	r.Use(middleware.JWTAuthMiddleware())
+	r.PUT("/api/v1/auth/change-password", handler.ChangePassword)
 }
 
 func (h *AuthHandler) Login(c *gin.Context) {
