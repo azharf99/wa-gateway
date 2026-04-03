@@ -19,7 +19,8 @@ func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 	{
 		authRoutes.POST("/login", handler.Login)
 		authRoutes.POST("/refresh", handler.Refresh)
-		authRoutes.POST("/change-password", handler.ChangePassword)
+		authRoutes.GET("/user/:id", handler.GetUser)
+		authRoutes.PUT("/change-password", handler.ChangePassword)
 		authRoutes.POST("/logout", handler.Logout)
 	}
 }
@@ -90,6 +91,25 @@ func (h *AuthHandler) Logout(c *gin.Context) {
 	c.JSON(http.StatusOK, domain.Response{
 		Status:  "success",
 		Message: "Logout berhasil",
+	})
+}
+
+func (h *AuthHandler) GetUser(c *gin.Context) {
+	idParam := c.Param("id")
+	userID, err := strconv.Atoi(idParam)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, domain.Response{Status: "error", Message: "User ID tidak valid"})
+		return
+	}
+	user, err := h.uc.GetUserById(c.Request.Context(), uint(userID))
+	if err != nil {
+		c.JSON(http.StatusNotFound, domain.Response{Status: "error", Message: "User tidak ditemukan"})
+		return
+	}
+	c.JSON(http.StatusOK, domain.Response{
+		Status:  "success",
+		Message: "User ditemukan",
+		Data:    user,
 	})
 }
 

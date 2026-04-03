@@ -70,21 +70,26 @@ func (r *whatsmeowRepo) GetQRCode() string {
 }
 
 func (r *whatsmeowRepo) Logout() error {
+	// 1. Logout dari server WA jika masih terhubung
 	if r.client.IsLoggedIn() {
-		err := r.client.Logout(context.Background())
-		if err != nil {
-			return err
-		}
-
-		// Bersihkan QR Code memori (berjaga-jaga)
-		r.qrCode = ""
-
-		// Jalankan ulang Connect() di background agar VPS langsung bersiap
-		// menghasilkan QR Code baru untuk device pengganti Anda.
-		go func() {
-			r.Connect()
-		}()
+		r.client.Logout(context.Background())
 	}
+
+	// 2. SANGAT PENTING: Hapus device secara paksa dari database Postgres
+	if r.client.Store.ID != nil {
+		r.client.Store.Delete(context.Background())
+		r.client.Store.ID = nil // Reset ID di memori
+	}
+
+	// 3. Bersihkan sisa QR Code dan putuskan koneksi fisik
+	r.qrCode = ""
+	r.client.Disconnect()
+
+	// 4. Hubungkan ulang agar Whatsmeow membuat Store ID baru dan men-generate QR Code
+	go func() {
+		r.Connect()
+	}()
+
 	return nil
 }
 

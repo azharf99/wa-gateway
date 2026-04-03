@@ -101,6 +101,10 @@ func (uc *authUsecase) generateTokens(username string) (string, string, error) {
 	return accessTokenString, refreshTokenString, nil
 }
 
+func (uc *authUsecase) GetUserById(ctx context.Context, userID uint) (*domain.User, error) {
+	return uc.userRepo.GetByID(ctx, userID)
+}
+
 func (uc *authUsecase) ChangePassword(ctx context.Context, userID uint, req domain.ChangePasswordReq) error {
 	// 1. Ambil data user dari database
 	user, err := uc.userRepo.GetByID(ctx, userID)
