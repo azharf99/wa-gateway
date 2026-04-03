@@ -3,6 +3,7 @@ package middleware
 import (
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 
 	"github.com/azharf99/wa-gateway/internal/domain"
@@ -44,7 +45,7 @@ func SmartAuthMiddleware(userRepo domain.UserRepository) gin.HandlerFunc {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			// PERBAIKAN: Gunakan jwtAccessSecret
-			return jwtAccessSecret, nil
+			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -59,9 +60,18 @@ func SmartAuthMiddleware(userRepo domain.UserRepository) gin.HandlerFunc {
 		// Jika sukses, ekstrak payload (claims) dan simpan di context Gin
 		if claims, ok := token.Claims.(jwt.MapClaims); ok && token.Valid {
 			c.Set("username", claims["username"])
-			c.Set("user_id", claims["user_id"])
+
+			// PERBAIKAN: Amankan tipe data user_id agar selalu menjadi uint
+			if idFloat, ok := claims["user_id"].(float64); ok {
+				c.Set("user_id", uint(idFloat))
+			} else {
+				c.Set("user_id", claims["user_id"])
+			}
+
 			c.Set("role", claims["role"])
 		}
+
+		c.Next()
 
 		c.Next()
 	}

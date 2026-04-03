@@ -132,9 +132,13 @@ func main() {
 		MaxAge:           12 * time.Hour,
 	}))
 
-	handler.NewAuthHandler(r, aUC)
+	// 1. Buat instance middleware cerdas satu kali saja
+	smartAuth := middleware.SmartAuthMiddleware(uRepo)
+
+	handler.NewAuthHandler(r, aUC, smartAuth)
+
 	protected := r.Group("/")
-	protected.Use(middleware.SmartAuthMiddleware(uRepo)) // Pasang gemboknya di sini
+	protected.Use(smartAuth) // Pasang gemboknya di sini
 	{
 		// Oper route group yang sudah dilindungi ke handler
 		handler.NewWhatsAppHandler(protected, waUC)

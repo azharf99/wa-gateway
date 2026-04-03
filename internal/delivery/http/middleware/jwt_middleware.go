@@ -12,7 +12,6 @@ import (
 )
 
 // Harus sama dengan secret di Usecase
-var jwtAccessSecret = []byte(os.Getenv("JWT_SECRET"))
 
 func JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -43,7 +42,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
 			// PERBAIKAN: Gunakan jwtAccessSecret
-			return jwtAccessSecret, nil
+			return []byte(os.Getenv("JWT_SECRET")), nil
 		})
 
 		if err != nil || !token.Valid {

@@ -4,7 +4,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/azharf99/wa-gateway/internal/delivery/http/middleware"
 	"github.com/azharf99/wa-gateway/internal/domain"
 	"github.com/gin-gonic/gin"
 )
@@ -13,9 +12,11 @@ type AuthHandler struct {
 	uc domain.AuthUsecase
 }
 
-func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
+// PERBAIKAN 1: Tambahkan parameter authMiddleware
+func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase, authMiddleware gin.HandlerFunc) {
 	handler := &AuthHandler{uc: uc}
 
+	// 1. PUBLIC ROUTES (Tanpa Middleware)
 	authRoutes := r.Group("/api/auth")
 	{
 		authRoutes.POST("/login", handler.Login)
@@ -23,31 +24,35 @@ func NewAuthHandler(r *gin.Engine, uc domain.AuthUsecase) {
 		authRoutes.GET("/user/:id", handler.GetUser)
 		authRoutes.POST("/logout", handler.Logout)
 	}
-	r.Use(middleware.JWTAuthMiddleware())
-	r.PUT("/api/auth/change-password", handler.ChangePassword)
 
-	api := r.Group("/api/auth/api-key")
-	api.Use(middleware.JWTAuthMiddleware()) // Gunakan middleware JWT yang sudah ada
+	// 2. PROTECTED ROUTES (Hanya route ini yang dilindungi)
+	protectedAuth := r.Group("/api/auth")
+	protectedAuth.Use(authMiddleware) // PERBAIKAN 2: Gunakan middleware dari parameter
 	{
-		api.GET("/", func(c *gin.Context) {
-			userID := c.MustGet("user_id").(uint)
-			key, err := uc.GetApiKey(c.Request.Context(), userID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, domain.Response{Status: "success", Data: gin.H{"api_key": key}})
-		})
+		protectedAuth.PUT("/change-password", handler.ChangePassword)
 
-		api.POST("/regenerate", func(c *gin.Context) {
-			userID := c.MustGet("user_id").(uint)
-			newKey, err := uc.GenerateApiKey(c.Request.Context(), userID)
-			if err != nil {
-				c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
-				return
-			}
-			c.JSON(http.StatusOK, domain.Response{Status: "success", Message: "API Key berhasil diregenerate", Data: gin.H{"api_key": newKey}})
-		})
+		api := protectedAuth.Group("/api-key")
+		{
+			api.GET("/", func(c *gin.Context) {
+				userID := c.MustGet("user_id").(uint)
+				key, err := uc.GetApiKey(c.Request.Context(), userID)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, domain.Response{Status: "success", Data: gin.H{"api_key": key}})
+			})
+
+			api.POST("/regenerate", func(c *gin.Context) {
+				userID := c.MustGet("user_id").(uint)
+				newKey, err := uc.GenerateApiKey(c.Request.Context(), userID)
+				if err != nil {
+					c.JSON(http.StatusInternalServerError, domain.Response{Status: "error", Message: err.Error()})
+					return
+				}
+				c.JSON(http.StatusOK, domain.Response{Status: "success", Message: "API Key berhasil diregenerate", Data: gin.H{"api_key": newKey}})
+			})
+		}
 	}
 }
 
